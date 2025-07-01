@@ -20,3 +20,7 @@ tomli==2.0.1
 typing_extensions==4.9.0
 urllib3==2.2.0
 uvicorn==0.27.0.post1
+sqlalchemy
+psycopg2-binary          # ↩︎ si tu te connectes à PostgreSQL en mode synchrone
+# asyncpg                # ↩︎ à la place de psycopg2-binary si tu utilises SQLAlchemy async
+Jinja2==3.1.3
