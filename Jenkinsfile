@@ -3,6 +3,9 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "manel/simple-banking-api"
+        SONARQUBE_URL = "http://192.168.189.138:9000" // L'IP de VM2 (SonarQube)
+        SONARQUBE_TOKEN = credentials('sonarqube-token') // Token SonarQube enregistré dans Jenkins
+        TRIVY_IMAGE = "manel/simple-banking-api" // Image Docker pour le scan Trivy
     }
 
     stages {
@@ -15,16 +18,7 @@ pipeline {
             }
         }
 
-        // Étape 2 : Vérifier la version de Docker
-        stage('Docker Test') {
-            steps {
-                script {
-                    sh 'docker --version'
-                }
-            }
-        }
-
-        // Étape 3 : Construire l'image Docker
+        // Étape 2 : Construire l'image Docker
         stage('Build Docker image') {
             steps {
                 script {
@@ -33,11 +27,38 @@ pipeline {
             }
         }
 
-        // Étape 4 : Exécuter le conteneur Docker
-        stage('Run Docker container') {
+        // Étape 3 : Scanner l'image Docker avec Trivy pour les vulnérabilités
+        stage('Trivy Scan') {
             steps {
                 script {
-                    // Arrêter et supprimer le conteneur existant (si présent), puis lancer le nouveau
+                    echo "Starting Trivy scan..."
+                    sh "trivy image --exit-code 1 --severity HIGH,CRITICAL --no-progress --format table $DOCKER_IMAGE"
+                }
+            }
+        }
+
+        // Étape 4 : Analyse du code avec SonarQube
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    echo "Starting SonarQube analysis..."
+                    withSonarQubeEnv('SonarQube') { // Assurez-vous d'avoir configuré l'outil SonarQube dans Jenkins
+                        sh "mvn clean verify sonar:sonar -Dsonar.projectKey=simple-banking-api -Dsonar.host.url=$SONARQUBE_URL -Dsonar.login=$SONARQUBE_TOKEN"
+                    }
+                }
+            }
+        }
+
+        // Étape 5 : Exécuter le conteneur Docker (uniquement si le scan Trivy est réussi)
+        stage('Run Docker container') {
+            when {
+                expression {
+                    return currentBuild.result == null || currentBuild.result == 'SUCCESS'
+                }
+            }
+            steps {
+                script {
+                    echo "Running Docker container..."
                     sh '''
                     docker stop simple-banking-api || true
                     docker rm simple-banking-api || true
@@ -46,11 +67,21 @@ pipeline {
                 }
             }
         }
+
+        // Étape 6 : Tests unitaires (exemple de test ici avec pytest)
+        stage('Unit Tests') {
+            steps {
+                script {
+                    echo "Running unit tests..."
+                    sh 'pytest tests/'
+                }
+            }
+        }
     }
 
     post {
         always {
-            // Nettoyage du conteneur à la fin
+            // Nettoyage des ressources Docker
             sh 'docker stop simple-banking-api || true'
             sh 'docker rm simple-banking-api || true'
         }
