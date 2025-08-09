@@ -1,84 +1,88 @@
 pipeline {
-    agent none  // Pas d'agent par défaut, chaque étape aura un agent spécifique
-
-    tools {
-        maven 'Maven 3'  // Utilise l'installation de Maven nommée 'Maven 3' définie dans Jenkins
-    }
+    agent any
 
     environment {
-        GIT_REPO = 'https://github.com/18448-ops/simple-banking.git'
-        BRANCH = 'main'  // Ou un autre nom de branche selon ton besoin
+        DOCKER_IMAGE = 'manel/simple-banking-api'
+        SONAR_PROJECT_KEY = 'your_project_key'
+    }
+
+    tools {
+        // Utilisation de Maven dans Jenkins (assurez-vous qu'il est installé et configuré dans Jenkins)
+        maven 'Maven 3'
     }
 
     stages {
-        // Étape de récupération du code source depuis Git
         stage('Checkout') {
-            agent { node { label 'built-in' } }
             steps {
-                checkout scm  // Vérifie le code source depuis Git
                 script {
-                    // Vérifie que le bon dépôt et la bonne branche sont utilisés
-                    echo "Cloning repository from ${env.GIT_REPO} branch ${env.BRANCH}"
+                    echo 'Cloning repository from GitHub...'
+                    checkout scm
                 }
             }
         }
 
-        // Étape de build Docker
         stage('Build Docker Image') {
-            agent { node { label 'built-in' } }
             steps {
                 script {
                     echo 'Building Docker image...'
-                    sh 'docker build -t manel/simple-banking-api .'  // Construction de l'image Docker
+                    sh 'docker build -t $DOCKER_IMAGE .'
                 }
             }
         }
 
-        // Étape d'analyse de sécurité avec Trivy
         stage('Trivy Scan') {
-            agent { node { label 'built-in' } }
             steps {
                 script {
+                    echo 'Installing Trivy...'
+                    sh '''
+                        curl -sfL https://github.com/aquasecurity/trivy/releases/download/v0.33.0/trivy_0.33.0_Linux-64bit.tar.gz -o trivy.tar.gz
+                        tar -xvzf trivy.tar.gz
+                        mv trivy /usr/local/bin/
+                        trivy --version
+                    '''
                     echo 'Running Trivy scan...'
-                    sh 'trivy image --format json --output trivy_report.json manel/simple-banking-api'  // Scanner avec Trivy
+                    sh "trivy image --format json --output trivy_report.json $DOCKER_IMAGE"
                 }
             }
         }
 
-        // Étape d'analyse de qualité de code avec SonarQube
         stage('SonarQube Analysis') {
-            agent { node { label 'built-in' } }
             steps {
                 script {
                     echo 'Running SonarQube analysis...'
                     withSonarQubeEnv('SonarQube-Server') {
-                        sh 'mvn clean install sonar:sonar -Dsonar.projectKey=your_project_key'  // Analyse SonarQube avec Maven
+                        sh "mvn clean install sonar:sonar -Dsonar.projectKey=$SONAR_PROJECT_KEY"
                     }
                 }
             }
         }
 
-        // Étape de tests (unitaires, etc.)
         stage('Run Tests') {
-            agent { node { label 'built-in' } }
             steps {
                 script {
                     echo 'Running tests...'
-                    // Exemple de commande pour exécuter les tests, adapte selon ton besoin
-                    sh 'pytest tests/'  // Exécution des tests avec pytest
+                    // Ajoutez ici votre commande pour exécuter des tests unitaires, par exemple :
+                    sh 'pytest'
                 }
             }
         }
 
-        // Étape de nettoyage (post-actions)
         stage('Post Actions') {
-            agent { node { label 'built-in' } }
             steps {
-                script {
-                    cleanWs()  // Nettoie l'espace de travail après l'exécution du pipeline
-                    echo 'Workspace cleaned.'
-                }
+                cleanWs() // Nettoie le workspace
             }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning up workspace...'
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
         }
     }
 }
