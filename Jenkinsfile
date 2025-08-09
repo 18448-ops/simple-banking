@@ -1,55 +1,67 @@
 pipeline {
     agent any
     environment {
-        DOCKER_IMAGE = "manel/simple-banking-api"
-        SONARQUBE_SERVER = "SonarQube-Server"  // Nom du serveur SonarQube configuré
+        SONARQUBE_SERVER = 'SonarQube-Server' // Le nom du serveur SonarQube configuré dans Jenkins
+        MAVEN_HOME = tool name: 'Maven 3', type: 'Maven'  // Assurez-vous que Maven est installé dans Jenkins
     }
 
     stages {
         stage('Checkout') {
             steps {
-                // Utilisation de credentials pour GitHub
-                git branch: 'main', url: 'https://github.com/18448-ops/simple-banking.git', credentialsId: 'github-credentials'
+                checkout scm
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Construction de l'image Docker
-                    sh 'docker build -t $DOCKER_IMAGE .'
+                    // Construire l'image Docker
+                    sh 'docker build -t manel/simple-banking-api .'
                 }
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                // Analyse SonarQube dans un bloc avecSonarQubeEnv
-                withSonarQubeEnv('SonarQube-Server') {  // Utilise le nom du serveur SonarQube configuré dans Jenkins
-                    sh 'mvn clean install sonar:sonar -Dsonar.projectKey=your_project_key'
+                script {
+                    // Exécuter l'analyse SonarQube avec Maven
+                    withSonarQubeEnv(SONARQUBE_SERVER) {
+                        sh "${MAVEN_HOME}/bin/mvn clean install sonar:sonar -Dsonar.projectKey=your_project_key"
+                    }
                 }
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh 'docker run -d --name simple-banking-api -p 8000:8000 $DOCKER_IMAGE'
-                // Ajouter ici les étapes pour exécuter les tests
+                script {
+                    // Si vous avez des tests unitaires, vous pouvez les exécuter ici
+                    sh 'pytest'  // Exemple pour Python, adaptez en fonction de votre projet
+                }
+            }
+        }
+
+        stage('Post Actions') {
+            steps {
+                cleanWs()
             }
         }
     }
 
     post {
         always {
-            cleanWs() // Nettoyage de l'espace de travail
+            // Toujours effectuer un nettoyage après le pipeline
+            cleanWs()
         }
 
         success {
-            echo "Pipeline executed successfully"
+            // Actions en cas de succès, comme envoyer une notification
+            echo 'Pipeline completed successfully!'
         }
 
         failure {
-            echo "Pipeline failed"
+            // Actions en cas d'échec, comme envoyer un email de notification
+            echo 'Pipeline failed!'
         }
     }
 }
