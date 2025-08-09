@@ -2,92 +2,83 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'manel/simple-banking-api:latest'
-        SONARQUBE = 'SonarQube' // Nom de votre configuration SonarQube dans Jenkins
-        GIT_REPO = 'https://github.com/18448-ops/simple-banking.git'
-        GIT_BRANCH = 'main'
-    }
-
-    tools {
-        // Définir les outils nécessaires, par exemple, Maven si tu l'utilises
-        maven 'Maven 3'
+        DOCKER_IMAGE_NAME = 'manel/simple-banking-api'
+        SONAR_PROJECT_KEY = 'simple-banking'
+        SONAR_HOST_URL = 'http://<YOUR_SONARQUBE_URL>' // Remplace par l'URL de ton serveur SonarQube
+        SONAR_TOKEN = credentials('sonar-token') // Utilise le token que tu as dans Jenkins (tu devras configurer cette clé d'authentification)
     }
 
     stages {
-        // Checkout code
         stage('Checkout SCM') {
             steps {
-                echo 'Cloning repository from GitHub...'
-                git branch: "${GIT_BRANCH}", url: "${GIT_REPO}"
+                echo 'Cloning Git repository...'
+                checkout scm // Récupère automatiquement le dépôt Git configuré dans Jenkins
             }
         }
 
-        // Build Docker Image
         stage('Build Docker Image') {
             steps {
                 script {
                     echo 'Building Docker image...'
-                    sh 'docker build -t $DOCKER_IMAGE .'
+                    // Exécute Docker avec sudo pour construire l'image
+                    sh 'sudo docker build -t ${DOCKER_IMAGE_NAME}:latest .'
                 }
             }
         }
 
-        // Trivy scan
         stage('Trivy Scan') {
             steps {
                 script {
-                    echo 'Installing Trivy...'
-                    sh '''
-                        # Télécharge Trivy et installe-le avec sudo
-                        curl -sfL https://github.com/aquasecurity/trivy/releases/download/v0.33.0/trivy_0.33.0_Linux-64bit.tar.gz -o trivy.tar.gz
-                        tar -xvzf trivy.tar.gz
-                        sudo mv trivy /usr/local/bin/
-                        sudo chmod +x /usr/local/bin/trivy
-                        trivy --version
-                    '''
                     echo 'Running Trivy scan...'
-                    sh "trivy image --format json --output trivy_report.json $DOCKER_IMAGE"
+                    // Exécute Trivy avec sudo pour scanner l'image Docker
+                    sh 'sudo trivy image --format json --output trivy_report.json ${DOCKER_IMAGE_NAME}'
                 }
             }
         }
 
-        // SonarQube Analysis
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    echo 'Running SonarQube Analysis...'
-                    withSonarQubeEnv(SONARQUBE) {
-                        sh '''
-                            mvn clean install sonar:sonar -Dsonar.projectKey=simple-banking -Dsonar.host.url=http://localhost:9000
-                        '''
-                    }
+                    echo 'Running SonarQube analysis...'
+                    // Exécution de l'analyse SonarQube avec Maven (assure-toi que Maven est installé et configuré)
+                    sh '''
+                    mvn clean install
+                    mvn sonar:sonar \
+                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                        -Dsonar.host.url=${SONAR_HOST_URL} \
+                        -Dsonar.login=${SONAR_TOKEN}
+                    '''
                 }
             }
         }
 
-        // Run Tests
         stage('Run Tests') {
             steps {
-                echo 'Running Tests...'
-                sh 'pytest tests/'
+                script {
+                    echo 'Running tests...'
+                    // Exécution des tests avec pytest
+                    sh 'pytest --maxfail=1 --disable-warnings -q'
+                }
             }
         }
 
-        // Clean workspace
         stage('Post Actions') {
             steps {
-                echo 'Cleaning up workspace...'
-                cleanWs()
+                script {
+                    echo 'Cleaning up workspace...'
+                    // Nettoyage du workspace après le build
+                    cleanWs()
+                }
             }
         }
     }
 
     post {
-        failure {
-            echo 'Pipeline failed!'
-        }
         success {
             echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
         }
     }
 }
