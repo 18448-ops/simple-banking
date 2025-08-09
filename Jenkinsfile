@@ -1,13 +1,13 @@
 pipeline {
-    agent any // Utiliser un agent par défaut, ou remplace par 'node("label")' si tu as un label spécifique
+    agent any // Utiliser l'agent par défaut. Si tu utilises un agent spécifique, remplace-le par 'node("label")'
 
     tools {
-        maven 'Maven 3' // Nom de l'installation Maven dans Jenkins (doit correspondre à la configuration)
+        maven 'Maven 3' // Assure-toi que 'Maven 3' correspond à la configuration de Maven dans Jenkins
     }
 
     environment {
         SONARQUBE_SERVER = 'SonarQube-Server' // Nom de la configuration SonarQube dans Jenkins
-        MAVEN_HOME = tool name: 'Maven 3', type: 'Maven' // Assure-toi que Maven est bien installé et configuré
+        MAVEN_HOME = tool name: 'Maven 3', type: 'Maven' // Assure-toi que Maven est bien configuré
     }
 
     stages {
@@ -48,8 +48,8 @@ pipeline {
 
         stage('Post Actions') {
             steps {
-                node {
-                    cleanWs() // Assurer que cleanWs est à l'intérieur du bloc node
+                node { // Le bloc node pour garantir l'exécution de cleanWs dans le contexte d'un agent
+                    cleanWs()
                 }
             }
         }
