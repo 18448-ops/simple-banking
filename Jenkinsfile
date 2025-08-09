@@ -1,8 +1,13 @@
 pipeline {
     agent any
+
+    tools {
+        maven 'Maven 3' // Nom de l'installation Maven dans Jenkins (à définir dans la configuration globale)
+    }
+
     environment {
-        SONARQUBE_SERVER = 'SonarQube-Server' // Le nom du serveur SonarQube configuré dans Jenkins
-        MAVEN_HOME = tool name: 'Maven 3', type: 'Maven'  // Assurez-vous que Maven est installé dans Jenkins
+        SONARQUBE_SERVER = 'SonarQube-Server' // Nom de la configuration SonarQube dans Jenkins
+        MAVEN_HOME = tool name: 'Maven 3', type: 'Maven' // Assurez-vous que Maven est bien installé dans Jenkins
     }
 
     stages {
@@ -35,15 +40,17 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    // Si vous avez des tests unitaires, vous pouvez les exécuter ici
-                    sh 'pytest'  // Exemple pour Python, adaptez en fonction de votre projet
+                    // Exécuter les tests unitaires si nécessaire
+                    sh 'pytest' // Exemple pour Python, adapte selon tes besoins
                 }
             }
         }
 
         stage('Post Actions') {
             steps {
-                cleanWs()
+                node {
+                    cleanWs() // Assurer que cleanWs est à l'intérieur du bloc node
+                }
             }
         }
     }
