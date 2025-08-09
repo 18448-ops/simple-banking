@@ -1,13 +1,13 @@
 pipeline {
-    agent any
+    agent any // Utiliser un agent par défaut, ou remplace par 'node("label")' si tu as un label spécifique
 
     tools {
-        maven 'Maven 3' // Nom de l'installation Maven dans Jenkins (à définir dans la configuration globale)
+        maven 'Maven 3' // Nom de l'installation Maven dans Jenkins (doit correspondre à la configuration)
     }
 
     environment {
         SONARQUBE_SERVER = 'SonarQube-Server' // Nom de la configuration SonarQube dans Jenkins
-        MAVEN_HOME = tool name: 'Maven 3', type: 'Maven' // Assurez-vous que Maven est bien installé dans Jenkins
+        MAVEN_HOME = tool name: 'Maven 3', type: 'Maven' // Assure-toi que Maven est bien installé et configuré
     }
 
     stages {
