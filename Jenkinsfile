@@ -15,7 +15,16 @@ pipeline {
             }
         }
 
-        // Étape 2 : Construire l'image Docker
+        // Étape 2 : Vérifier la version de Docker
+        stage('Docker Test') {
+            steps {
+                script {
+                    sh 'docker --version'
+                }
+            }
+        }
+
+        // Étape 3 : Construire l'image Docker
         stage('Build Docker image') {
             steps {
                 script {
@@ -24,7 +33,7 @@ pipeline {
             }
         }
 
-        // Étape 3 : Exécuter le conteneur Docker
+        // Étape 4 : Exécuter le conteneur Docker
         stage('Run Docker container') {
             steps {
                 script {
