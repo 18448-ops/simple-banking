@@ -1,74 +1,84 @@
 pipeline {
-    agent any // Utiliser l'agent par défaut. Si tu utilises un agent spécifique, remplace-le par 'node("label")'
+    agent none  // Pas d'agent par défaut, chaque étape aura un agent spécifique
 
     tools {
-        maven 'Maven 3' // Assure-toi que 'Maven 3' correspond à la configuration de Maven dans Jenkins
+        maven 'Maven 3'  // Utilise l'installation de Maven nommée 'Maven 3' définie dans Jenkins
     }
 
     environment {
-        SONARQUBE_SERVER = 'SonarQube-Server' // Nom de la configuration SonarQube dans Jenkins
-        MAVEN_HOME = tool name: 'Maven 3', type: 'Maven' // Assure-toi que Maven est bien configuré
+        GIT_REPO = 'https://github.com/18448-ops/simple-banking.git'
+        BRANCH = 'main'  // Ou un autre nom de branche selon ton besoin
     }
 
     stages {
+        // Étape de récupération du code source depuis Git
         stage('Checkout') {
+            agent { node { label 'built-in' } }
             steps {
-                checkout scm
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
+                checkout scm  // Vérifie le code source depuis Git
                 script {
-                    // Construire l'image Docker
-                    sh 'docker build -t manel/simple-banking-api .'
+                    // Vérifie que le bon dépôt et la bonne branche sont utilisés
+                    echo "Cloning repository from ${env.GIT_REPO} branch ${env.BRANCH}"
                 }
             }
         }
 
-        stage('SonarQube Analysis') {
+        // Étape de build Docker
+        stage('Build Docker Image') {
+            agent { node { label 'built-in' } }
             steps {
                 script {
-                    // Exécuter l'analyse SonarQube avec Maven
-                    withSonarQubeEnv(SONARQUBE_SERVER) {
-                        sh "${MAVEN_HOME}/bin/mvn clean install sonar:sonar -Dsonar.projectKey=your_project_key"
+                    echo 'Building Docker image...'
+                    sh 'docker build -t manel/simple-banking-api .'  // Construction de l'image Docker
+                }
+            }
+        }
+
+        // Étape d'analyse de sécurité avec Trivy
+        stage('Trivy Scan') {
+            agent { node { label 'built-in' } }
+            steps {
+                script {
+                    echo 'Running Trivy scan...'
+                    sh 'trivy image --format json --output trivy_report.json manel/simple-banking-api'  // Scanner avec Trivy
+                }
+            }
+        }
+
+        // Étape d'analyse de qualité de code avec SonarQube
+        stage('SonarQube Analysis') {
+            agent { node { label 'built-in' } }
+            steps {
+                script {
+                    echo 'Running SonarQube analysis...'
+                    withSonarQubeEnv('SonarQube-Server') {
+                        sh 'mvn clean install sonar:sonar -Dsonar.projectKey=your_project_key'  // Analyse SonarQube avec Maven
                     }
                 }
             }
         }
 
+        // Étape de tests (unitaires, etc.)
         stage('Run Tests') {
+            agent { node { label 'built-in' } }
             steps {
                 script {
-                    // Exécuter les tests unitaires si nécessaire
-                    sh 'pytest' // Exemple pour Python, adapte selon tes besoins
+                    echo 'Running tests...'
+                    // Exemple de commande pour exécuter les tests, adapte selon ton besoin
+                    sh 'pytest tests/'  // Exécution des tests avec pytest
                 }
             }
         }
 
+        // Étape de nettoyage (post-actions)
         stage('Post Actions') {
+            agent { node { label 'built-in' } }
             steps {
-                node { // Le bloc node pour garantir l'exécution de cleanWs dans le contexte d'un agent
-                    cleanWs()
+                script {
+                    cleanWs()  // Nettoie l'espace de travail après l'exécution du pipeline
+                    echo 'Workspace cleaned.'
                 }
             }
-        }
-    }
-
-    post {
-        always {
-            // Toujours effectuer un nettoyage après le pipeline
-            cleanWs()
-        }
-
-        success {
-            // Actions en cas de succès, comme envoyer une notification
-            echo 'Pipeline completed successfully!'
-        }
-
-        failure {
-            // Actions en cas d'échec, comme envoyer un email de notification
-            echo 'Pipeline failed!'
         }
     }
 }
