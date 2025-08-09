@@ -33,10 +33,10 @@ pipeline {
             steps {
                 script {
                     echo 'Running Trivy scan...'
-                    sh 'curl -sfL https://github.com/aquasecurity/trivy/releases/download/v0.33.0/trivy_0.33.0_Linux-64bit.tar.gz -o trivy.tar.gz'
-                    sh 'tar -xvzf trivy.tar.gz'
-                    sh 'mv trivy /usr/local/bin/'
-                    sh 'trivy image --format json --output trivy_report.json manel/simple-banking-api:latest'
+                    // Téléchargement de Trivy dans un répertoire accessible
+                    sh 'curl -sfL https://github.com/aquasecurity/trivy/releases/download/v0.33.0/trivy_0.33.0_Linux-64bit.tar.gz -o /tmp/trivy.tar.gz'
+                    sh 'tar -xvzf /tmp/trivy.tar.gz -C /tmp'
+                    sh '/tmp/trivy image --format json --output /tmp/trivy_report.json manel/simple-banking-api:latest'
                 }
             }
         }
