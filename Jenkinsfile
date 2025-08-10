@@ -3,13 +3,15 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "manel/simple-banking-api"
+        SONARQUBE_URL = "http://192.168.189.138:9000"
+        SONARQUBE_TOKEN = "3rINM1HkWDD/nb7HmKbJYMVHZniCbwkC5xGCEp0AZTU="
     }
 
     stages {
-        // Étape 1 : Cloner le code source depuis GitHub
+        // Étape 1 : Cloner le code source depuis GitHub (branche Test-sonarqube)
         stage('Clone repo') {
             steps {
-                git branch: 'main', 
+                git branch: 'Test-sonarqube', 
                     url: 'https://github.com/18448-ops/simple-banking.git', 
                     credentialsId: 'github-credentials'
             }
@@ -33,7 +35,23 @@ pipeline {
             }
         }
 
-        // Étape 4 : Exécuter le conteneur Docker
+        // Étape 4 : Analyser le code avec SonarQube
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    // Analyse du code source avec SonarQube pour la branche Test-sonarqube
+                    sh """
+                    sonar-scanner \
+                    -Dsonar.projectKey=simple-banking-api \
+                    -Dsonar.sources=. \
+                    -Dsonar.host.url=$SONARQUBE_URL \
+                    -Dsonar.login=$SONARQUBE_TOKEN
+                    """
+                }
+            }
+        }
+
+        // Étape 5 : Exécuter le conteneur Docker
         stage('Run Docker container') {
             steps {
                 script {
