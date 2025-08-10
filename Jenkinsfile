@@ -8,10 +8,10 @@ pipeline {
     }
 
     stages {
-        // Étape 1 : Cloner le code source depuis GitHub (branche Test-sonarqube)
+        // Étape 1 : Cloner le code source depuis GitHub (branche Test-Sonarqube)
         stage('Clone repo') {
             steps {
-                git branch: 'Test-sonarqube', 
+                git branch: 'Test-Sonarqube', 
                     url: 'https://github.com/18448-ops/simple-banking.git', 
                     credentialsId: 'github-credentials'
             }
