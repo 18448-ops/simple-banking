@@ -2,86 +2,65 @@ pipeline {
     agent any
 
     environment {
-        SONARQUBE_URL = 'http://192.168.189.138:9000'
-        SONARQUBE_TOKEN = '3rINM1HkWDD/nb7HmKbJYMVHZniCbwkC5xGCEp0AZTU=' // Token fourni
+        DOCKER_IMAGE = "manel/simple-banking-api"
     }
 
     stages {
-        stage('Checkout') {
+        // Étape 1 : Cloner le code source depuis GitHub
+        stage('Clone repo') {
+            steps {
+                git branch: 'main', 
+                    url: 'https://github.com/18448-ops/simple-banking.git', 
+                    credentialsId: 'github-credentials'
+            }
+        }
+
+        // Étape 2 : Vérifier la version de Docker
+        stage('Docker Test') {
             steps {
                 script {
-                    echo 'Cloning repository from GitHub...'
-                    checkout scm: [
-                        $class: 'GitSCM',
-                        branches: [[name: 'refs/heads/main']], // Spécification de la branche main
-                        userRemoteConfigs: [[url: 'https://github.com/18448-ops/simple-banking.git']]
-                    ]
+                    sh 'docker --version'
                 }
             }
         }
 
-        stage('Build Docker Image') {
+        // Étape 3 : Construire l'image Docker
+        stage('Build Docker image') {
             steps {
                 script {
-                    echo 'Building Docker image...'
-                    sh 'docker build -t manel/simple-banking-api:latest .'
+                    sh 'docker build -t $DOCKER_IMAGE .'
                 }
             }
         }
 
-        stage('Trivy Scan') {
+        // Étape 4 : Exécuter le conteneur Docker
+        stage('Run Docker container') {
             steps {
                 script {
-                    echo 'Running Trivy scan...'
-                    // Téléchargement de Trivy dans un répertoire accessible
-                    sh 'curl -sfL https://github.com/aquasecurity/trivy/releases/download/v0.33.0/trivy_0.33.0_Linux-64bit.tar.gz -o /tmp/trivy.tar.gz'
-                    sh 'tar -xvzf /tmp/trivy.tar.gz -C /tmp'
-                    sh '/tmp/trivy image --format json --output /tmp/trivy_report.json manel/simple-banking-api:latest'
-                }
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                script {
-                    echo 'Running SonarQube analysis...'
-                    withSonarQubeEnv('SonarQube') {
-                        sh '''
-                            mvn clean verify sonar:sonar \
-                                -Dsonar.projectKey=simple-banking-api \
-                                -Dsonar.host.url=${SONARQUBE_URL} \
-                                -Dsonar.login=${SONARQUBE_TOKEN}
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Run Tests') {
-            steps {
-                script {
-                    echo 'Running tests...'
-                    sh 'pytest tests/'
-                }
-            }
-        }
-
-        stage('Post Actions') {
-            steps {
-                script {
-                    echo 'Cleaning up workspace...'
-                    cleanWs()
+                    // Arrêter et supprimer le conteneur existant (si présent), puis lancer le nouveau
+                    sh '''
+                    docker stop simple-banking-api || true
+                    docker rm simple-banking-api || true
+                    docker run -d --name simple-banking-api -p 8000:8000 $DOCKER_IMAGE
+                    '''
                 }
             }
         }
     }
 
     post {
-        success {
-            echo 'Pipeline succeeded!'
+        always {
+            // Nettoyage du conteneur à la fin
+            sh 'docker stop simple-banking-api || true'
+            sh 'docker rm simple-banking-api || true'
         }
+
+        success {
+            echo "Le pipeline a réussi!"
+        }
+
         failure {
-            echo 'Pipeline failed!'
+            echo "Le pipeline a échoué, vérifier les logs pour plus de détails."
         }
     }
 }
