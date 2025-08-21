@@ -9,8 +9,8 @@ pipeline {
         // Étape 1 : Cloner le code source depuis GitHub
         stage('Clone repo') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/18448-ops/simple-banking.git',
+                git branch: 'main', 
+                    url: 'https://github.com/18448-ops/simple-banking.git', 
                     credentialsId: 'github-credentials'
             }
         }
@@ -18,7 +18,7 @@ pipeline {
         // Étape 2 : Vérifier la version de Docker
         stage('Docker Test') {
             steps {
- script {
+                script {
                     sh 'docker --version'
                 }
             }
@@ -37,12 +37,11 @@ pipeline {
         stage('Run Docker container') {
             steps {
                 script {
-                    // Arrêter et supprimer le conteneur existant (si présent),>
-
- sh '''
+                    // Arrêter et supprimer le conteneur existant (si présent), puis lancer le nouveau
+                    sh '''
                     docker stop simple-banking-api || true
                     docker rm simple-banking-api || true
-                    docker run -d --name simple-banking-api -p 8000:8000 $DOCKE>
+                    docker run -d --name simple-banking-api -p 8000:8000 $DOCKER_IMAGE
                     '''
                 }
             }
@@ -55,7 +54,8 @@ pipeline {
             sh 'docker stop simple-banking-api || true'
             sh 'docker rm simple-banking-api || true'
         }
- success {
+
+        success {
             echo "Le pipeline a réussi!"
         }
 
@@ -64,4 +64,3 @@ pipeline {
         }
     }
 }
-
