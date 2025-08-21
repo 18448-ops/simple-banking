@@ -2,47 +2,50 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "manel/simple-banking-api"
+        // Définir l'URL du serveur SonarQube et le token d'authentification
+        SONARQUBE_URL = 'http://192.168.189.138:9000' // Remplace par ton URL SonarQube
+        SONARQUBE_TOKEN = credentials('sonarqube-token') // Le token que tu as configuré dans Jenkins
     }
 
     stages {
-        // Étape 1 : Cloner le code source depuis GitHub
-        stage('Clone repo') {
+        // Étape de récupération du code source
+        stage('Checkout') {
             steps {
-                git branch: 'main', 
-                    url: 'https://github.com/18448-ops/simple-banking.git', 
-                    credentialsId: 'github-credentials'
+                checkout scm // Récupère le code du repository GitHub
             }
         }
 
-        // Étape 2 : Vérifier la version de Docker
-        stage('Docker Test') {
+        // Étape de construction de l'image Docker
+        stage('Build Docker Image') {
             steps {
                 script {
-                    sh 'docker --version'
+                    // Construction de l'image Docker
+                    sh 'docker build -t manel/simple-banking-api .'
                 }
             }
         }
 
-        // Étape 3 : Construire l'image Docker
-        stage('Build Docker image') {
+        // Étape d'analyse SonarQube
+        stage('SonarQube Analysis') {
             steps {
                 script {
-                    sh 'docker build -t $DOCKER_IMAGE .'
+                    // Exécution de l'analyse SonarQube avec le scanner Docker
+                    sh """
+                        docker run --rm \
+                            -e SONARQUBE_URL=${SONARQUBE_URL} \
+                            -e SONARQUBE_TOKEN=${SONARQUBE_TOKEN} \
+                            sonarsource/sonar-scanner-cli
+                    """
                 }
             }
         }
 
-        // Étape 4 : Exécuter le conteneur Docker
-        stage('Run Docker container') {
+        // Étape de déploiement du container Docker
+        stage('Run Docker Container') {
             steps {
                 script {
-                    // Arrêter et supprimer le conteneur existant (si présent), puis lancer le nouveau
-                    sh '''
-                    docker stop simple-banking-api || true
-                    docker rm simple-banking-api || true
-                    docker run -d --name simple-banking-api -p 8000:8000 $DOCKER_IMAGE
-                    '''
+                    // Exécution du conteneur Docker en arrière-plan
+                    sh 'docker run -d --name simple-banking-api manel/simple-banking-api'
                 }
             }
         }
@@ -50,17 +53,19 @@ pipeline {
 
     post {
         always {
-            // Nettoyage du conteneur à la fin
+            // Nettoyage après le pipeline, arrêter et supprimer le conteneur s'il existe
             sh 'docker stop simple-banking-api || true'
             sh 'docker rm simple-banking-api || true'
         }
 
         success {
-            echo "Le pipeline a réussi!"
+            // Actions en cas de succès du pipeline
+            echo 'Le pipeline a été exécuté avec succès.'
         }
 
         failure {
-            echo "Le pipeline a échoué, vérifier les logs pour plus de détails."
+            // Actions en cas d'échec du pipeline
+            echo 'Le pipeline a échoué. Vérifier les logs pour plus de détails.'
         }
     }
 }
