@@ -2,9 +2,9 @@ pipeline {
     agent any
 
     environment {
-        // Utilisation de SonarQube local
-        SONARQUBE_URL = 'http://192.168.189.138:9000'
-        SONARQUBE_TOKEN = credentials('sonarqube-token')
+        // Utilisation du token de SonarQube de Jenkins
+        SONARQUBE_URL = 'http://192.168.189.138:9000' // Modifie ici si nécessaire
+        SONARQUBE_TOKEN = credentials('sonarqube-token') // Assure-toi que l'id 'sonarqube-token' correspond bien à celui dans Jenkins
     }
 
     stages {
@@ -26,13 +26,10 @@ pipeline {
             steps {
                 script {
                     sh """
-                        # Créer un fichier sonar-scanner.properties
-                        echo "sonar.host.url=${SONARQUBE_URL}" > sonar-scanner.properties
-                        echo "sonar.login=${SONARQUBE_TOKEN}" >> sonar-scanner.properties
-
-                        # Exécuter SonarScanner avec les propriétés configurées
                         docker run --rm \
                             -v ${PWD}/sonar-scanner.properties:/opt/sonar-scanner/conf/sonar-scanner.properties \
+                            -e SONARQUBE_URL=${SONARQUBE_URL} \
+                            -e SONARQUBE_TOKEN=${SONARQUBE_TOKEN} \
                             sonarsource/sonar-scanner-cli
                     """
                 }
@@ -59,7 +56,4 @@ pipeline {
         }
 
         failure {
-            echo 'Le pipeline a échoué. Vérifier les logs pour plus de détails.'
-        }
-    }
-}
+            echo 'Le pipeline a éc
