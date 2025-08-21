@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        // Utilise l'URL et token pour SonarQube local ou SonarCloud
-        SONARQUBE_URL = 'http://192.168.189.138:9000' // Modifie ici si nécessaire
+        // Utilisation de SonarQube local
+        SONARQUBE_URL = 'http://192.168.189.138:9000'
         SONARQUBE_TOKEN = credentials('sonarqube-token')
     }
 
@@ -26,9 +26,13 @@ pipeline {
             steps {
                 script {
                     sh """
+                        # Créer un fichier sonar-scanner.properties
+                        echo "sonar.host.url=${SONARQUBE_URL}" > sonar-scanner.properties
+                        echo "sonar.login=${SONARQUBE_TOKEN}" >> sonar-scanner.properties
+
+                        # Exécuter SonarScanner avec les propriétés configurées
                         docker run --rm \
-                            -e SONARQUBE_URL=${SONARQUBE_URL} \
-                            -e SONARQUBE_TOKEN=${SONARQUBE_TOKEN} \
+                            -v ${PWD}/sonar-scanner.properties:/opt/sonar-scanner/conf/sonar-scanner.properties \
                             sonarsource/sonar-scanner-cli
                     """
                 }
