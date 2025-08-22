@@ -5,25 +5,28 @@ pipeline {
         SONARQUBE_URL = 'http://192.168.189.138:9000' // URL de SonarQube
         SONARQUBE_TOKEN = credentials('sonarqube-token') // Utilisation du token SonarQube stocké dans Jenkins
         DATABASE_URL = "postgresql://user:password@192.168.189.135/mydb"  // Connexion à PostgreSQL sur une machine distante
+        DOCKER_IMAGE = "manel/simple-banking-api"  // Image Docker à construire
     }
 
     stages {
-        stage('Checkout SCM') {
+        // Étape 1 : Cloner le code source depuis GitHub (branche main)
+        stage('Clone repo') {
             steps {
-                script {
-                    echo 'Checking out the source code from the repository...'
-                    checkout scm
-                }
+                git branch: 'main',
+                    url: 'https://github.com/18448-ops/simple-banking.git', 
+                    credentialsId: 'github-credentials'
             }
         }
 
+        // Étape 2 : Installer les dépendances et créer un environnement virtuel
         stage('Install dependencies') {
             steps {
                 script {
                     echo 'Installing python3-venv package...'
                     sh '''
-                        sudo apt-get update
-                        sudo apt-get install -y python3.11-venv
+                        # Installation des dépendances sans sudo si déjà installé sur l'agent
+                        apt-get update || true
+                        apt-get install -y python3.11-venv || true
                     '''
                     echo 'Creating virtual environment and installing dependencies...'
                     sh '''
@@ -36,6 +39,7 @@ pipeline {
             }
         }
 
+        // Étape 3 : Lancer les tests
         stage('Test') {
             steps {
                 script {
@@ -49,6 +53,7 @@ pipeline {
             }
         }
 
+        // Étape 4 : Analyser le code avec SonarQube
         stage('SonarQube Analysis') {
             when {
                 expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
@@ -71,20 +76,26 @@ pipeline {
             }
         }
 
+        // Étape 5 : Construire l'image Docker
         stage('Build Docker Image') {
             steps {
                 script {
                     echo 'Building Docker image...'
-                    sh 'docker build -t simple-banking-api .'
+                    sh 'docker build -t $DOCKER_IMAGE .'
                 }
             }
         }
 
+        // Étape 6 : Exécuter le conteneur Docker
         stage('Run Docker Container') {
             steps {
                 script {
-                    echo 'Running the Docker container...'
-                    sh 'docker run -d --name simple-banking-api simple-banking-api'
+                    // Arrêter et supprimer le conteneur existant (si présent), puis lancer le nouveau
+                    sh '''
+                    docker stop simple-banking-api || true
+                    docker rm simple-banking-api || true
+                    docker run -d --name simple-banking-api -p 8000:8000 $DOCKER_IMAGE
+                    '''
                 }
             }
         }
@@ -92,14 +103,17 @@ pipeline {
 
     post {
         always {
-            echo 'Cleaning up...'
-            sh '''
-                docker stop simple-banking-api || true
-                docker rm simple-banking-api || true
-            '''
+            // Nettoyage du conteneur à la fin
+            sh 'docker stop simple-banking-api || true'
+            sh 'docker rm simple-banking-api || true'
         }
+
+        success {
+            echo "Le pipeline a réussi!"
+        }
+
         failure {
-            echo 'The pipeline failed. Please check the logs for details.'
+            echo "Le pipeline a échoué, vérifier les logs pour plus de détails."
         }
     }
 }
