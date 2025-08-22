@@ -2,18 +2,26 @@ pipeline {
     agent any
 
     environment {
-        VENV_DIR = "${WORKSPACE}/venv"
-        PYTHONPATH = "${WORKSPACE}/src"
-        PIP_CACHE_DIR = "${WORKSPACE}/.pip-cache"
-        ENVIRONMENT = "test"  // test pour SQLite, dev/prod pour PostgreSQL
-        DATABASE_URL = "${env.ENVIRONMENT == 'test' ? 'sqlite:///./test_banking.db' : (env.DATABASE_URL ?: 'postgresql://user:password@localhost/mydb')}"
+        SONARQUBE_URL = 'http://192.168.189.138:9000'  // L'URL de ton serveur SonarQube
+        SONARQUBE_TOKEN = credentials('sonarqube-token') // Utilisation de 'sonarqube-token' pour l'authentification à SonarQube
     }
 
     stages {
-
         stage('Checkout SCM') {
             steps {
-                checkout scm
+                script {
+                    echo 'Checking out the source code from the repository...'
+                    checkout scm
+                }
+            }
+        }
+
+        stage('Install python3-venv') {
+            steps {
+                script {
+                    echo 'Installing python3-venv package...'
+                    sh 'sudo apt-get update && sudo apt-get install -y python3-venv'
+                }
             }
         }
 
@@ -46,56 +54,18 @@ pipeline {
             steps {
                 echo "Analyse SAST avec SonarQube..."
                 withSonarQubeEnv('sonarqube') {
-                    withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                         sh """
                             ${tool 'sonar-scanner'}/bin/sonar-scanner \
                               -Dsonar.projectKey=simple-banking \
                               -Dsonar.sources=src \
-                              -Dsonar.host.url=http://192.168.189.138:9000 \
+                              -Dsonar.host.url=$SONAR_HOST_URL \
                               -Dsonar.login=$SONAR_TOKEN
                         """
                     }
                 }
             }
         }
-
-        // Les autres étapes sont commentées pour l'instant
-        /*
-        stage('Scan de vulnérabilités avec Trivy') {
-            steps {
-                echo "Scan des vulnérabilités avec Trivy..."
-                sh "trivy fs --exit-code 1 --severity CRITICAL,HIGH ."
-            }
-        }
-
-        stage('Build Docker') {
-            steps {
-                echo "Construction de l'image Docker..."
-                sh "docker build -t simple-banking:latest ."
-            }
-        }
-
-        stage('Monitoring & Alertes') {
-            steps {
-                echo "Vérification du monitoring et alertes..."
-                sh "echo 'Monitoring et alertes à configurer ici'"
-            }
-        }
-
-        stage('Reporting automatisé') {
-            steps {
-                echo "Génération du reporting automatisé..."
-                sh "echo 'Reporting automatisé à configurer ici'"
-            }
-        }
-
-        stage('Red Team / Simulation attaques (VM4)') {
-            steps {
-                echo "Simulation attaques Red Team..."
-                sh "echo 'Simulation d'attaques à configurer ici'"
-            }
-        }
-        */
     }
 
     post {
