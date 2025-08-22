@@ -20,7 +20,12 @@ pipeline {
         stage('Install dependencies') {
             steps {
                 script {
-                    echo 'Installing dependencies...'
+                    echo 'Installing python3-venv package...'
+                    sh '''
+                        sudo apt-get update
+                        sudo apt-get install -y python3.11-venv
+                    '''
+                    echo 'Creating virtual environment and installing dependencies...'
                     sh '''
                         python3 -m venv venv
                         . venv/bin/activate
