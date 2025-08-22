@@ -2,9 +2,9 @@ pipeline {
     agent any
 
     environment {
-        SONARQUBE_URL = 'http://192.168.189.138:9000'
-        SONARQUBE_TOKEN = credentials('sonarqube-token')
-        DATABASE_URL = "postgresql://user:password@localhost/mydb"  // Connexion à PostgreSQL
+        SONARQUBE_URL = 'http://192.168.189.138:9000' // URL de SonarQube
+        SONARQUBE_TOKEN = credentials('sonarqube-token') // Utilisation du token SonarQube stocké dans Jenkins
+        DATABASE_URL = "postgresql://user:password@192.168.189.135/mydb"  // Connexion à PostgreSQL sur une machine distante
     }
 
     stages {
@@ -94,4 +94,7 @@ pipeline {
             '''
         }
         failure {
-            echo 'The pipeline failed. Please check the logs for
+            echo 'The pipeline failed. Please check the logs for details.'
+        }
+    }
+}
