@@ -75,7 +75,15 @@ pipeline {
             }
         }
 
-        // Stage 6: Run Docker Container
+        // Stage 6: Verify Docker Permissions
+        stage('Verify Docker') {
+            steps {
+                echo "Verifying Docker permissions..."
+                sh 'docker info'
+            }
+        }
+
+        // Stage 7: Run Docker Container
         stage('Run Docker Container') {
             steps {
                 echo "Running Docker container..."
@@ -104,3 +112,4 @@ pipeline {
         }
     }
 }
+
