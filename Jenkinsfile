@@ -5,7 +5,7 @@ pipeline {
         VENV_DIR = "${WORKSPACE}/venv"
         PYTHONPATH = "${WORKSPACE}/src"
         PIP_CACHE_DIR = "${WORKSPACE}/.pip-cache"
-        ENVIRONMENT = "test" // test for SQLite, dev/prod for PostgreSQL
+        ENVIRONMENT = "test"  // test for SQLite, dev/prod for PostgreSQL
         DATABASE_URL = "${env.ENVIRONMENT == 'test' ? 'sqlite:///./test_banking.db' : (env.DATABASE_URL ?: 'postgresql://user:password@192.168.189.135/mydb')}"
         SONARQUBE_URL = 'http://192.168.189.138:9000'  // URL of your SonarQube
         SONARQUBE_TOKEN = credentials('sonarqube-token')  // Use the SonarQube token stored in Jenkins
@@ -51,7 +51,7 @@ pipeline {
             when { expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' } }
             steps {
                 echo "Running SAST analysis with SonarQube..."
-                withSonarQubeEnv('sonarqube') {
+                withSonarQubeEnv('SonarQube') {
                     withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
                         sh """
                             ${tool 'sonar-scanner'}/bin/sonar-scanner \
@@ -112,4 +112,3 @@ pipeline {
         }
     }
 }
-
